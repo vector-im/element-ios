@@ -1786,15 +1786,30 @@ TableViewSectionsDelegate>
     {
         if (row == NOTIFICATION_SETTINGS_ENABLE_PUSH_INDEX)
         {
-            MXKTableViewCellWithLabelAndSwitch* labelAndSwitchCell = [self getLabelAndSwitchCell:tableView forIndexPath:indexPath];
-    
-            labelAndSwitchCell.mxkLabel.text = NSLocalizedStringFromTable(@"settings_enable_push_notif", @"Vector", nil);
-            labelAndSwitchCell.mxkSwitch.on = account.pushNotificationServiceIsActive;
-            labelAndSwitchCell.mxkSwitch.onTintColor = ThemeService.shared.theme.tintColor;
-            labelAndSwitchCell.mxkSwitch.enabled = YES;
-            [labelAndSwitchCell.mxkSwitch addTarget:self action:@selector(togglePushNotifications:) forControlEvents:UIControlEventTouchUpInside];
+            MXKTableViewCellWithButton *notificationsCell = [tableView dequeueReusableCellWithIdentifier:[MXKTableViewCellWithButton defaultReuseIdentifier]];
+            if (!notificationsCell)
+            {
+                notificationsCell = [[MXKTableViewCellWithButton alloc] init];
+            }
+            else
+            {
+                // Fix https://github.com/vector-im/riot-ios/issues/1354
+                // Do not move this line in prepareForReuse because of https://github.com/vector-im/riot-ios/issues/1323
+                notificationsCell.mxkButton.titleLabel.text = nil;
+            }
             
-            cell = labelAndSwitchCell;
+            NSString* title = NSLocalizedStringFromTable(@"settings_enable_push_notif", @"Vector", nil);
+            
+            [notificationsCell.mxkButton setTitle:title forState:UIControlStateNormal];
+            [notificationsCell.mxkButton setTitle:title forState:UIControlStateHighlighted];
+            [notificationsCell.mxkButton setTintColor:ThemeService.shared.theme.tintColor];
+            notificationsCell.mxkButton.titleLabel.font = [UIFont systemFontOfSize:17];
+            
+            [notificationsCell.mxkButton removeTarget:self action:nil forControlEvents:UIControlEventTouchUpInside];
+            [notificationsCell.mxkButton addTarget:self action:@selector(openSystemSettingsApp:) forControlEvents:UIControlEventTouchUpInside];
+            notificationsCell.mxkButton.accessibilityIdentifier=@"SettingsVCSignOutButton";   // FIXME: Implement accessibility
+            
+            cell = notificationsCell;
         }
         else if (row == NOTIFICATION_SETTINGS_SHOW_DECODED_CONTENT)
         {
@@ -2789,82 +2804,10 @@ TableViewSectionsDelegate>
     }
 }
 
-- (void)togglePushNotifications:(id)sender
+- (void)openSystemSettingsApp:(id)sender
 {
-    // Get the user's notification settings to check their authorization status.
-    [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings * _Nonnull settings) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self togglePushNotifications:sender withNotificationSettings:settings];
-        });
-    }];
-}
-
-- (void)togglePushNotifications:(id)sender withNotificationSettings:(UNNotificationSettings * _Nonnull)settings
-{
-    // Check first whether the user allow notification from device settings
-    if (settings.authorizationStatus == UNAuthorizationStatusDenied)
-    {
-        [currentAlert dismissViewControllerAnimated:NO completion:nil];
-        
-        __weak typeof(self) weakSelf = self;
-
-        NSString *appDisplayName = [[NSBundle mainBundle] infoDictionary][@"CFBundleDisplayName"];
-        
-        currentAlert = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:NSLocalizedStringFromTable(@"settings_on_denied_notification", @"Vector", nil), appDisplayName] message:nil preferredStyle:UIAlertControllerStyleAlert];
-        
-        [currentAlert addAction:[UIAlertAction actionWithTitle:[NSBundle mxk_localizedStringForKey:@"ok"]
-                                                         style:UIAlertActionStyleDefault
-                                                       handler:^(UIAlertAction * action) {
-                                                           
-                                                           if (weakSelf)
-                                                           {
-                                                               typeof(self) self = weakSelf;
-                                                               self->currentAlert = nil;
-                                                           }
-                                                           
-                                                       }]];
-        
-        [currentAlert mxk_setAccessibilityIdentifier: @"SettingsVCPushNotificationsAlert"];
-        [self presentViewController:currentAlert animated:YES completion:nil];
-        
-        // Keep off the switch
-        ((UISwitch*)sender).on = NO;
-    }
-    else if ([MXKAccountManager sharedManager].activeAccounts.count)
-    {
-        [self startActivityIndicator];
-        
-        MXKAccountManager *accountManager = [MXKAccountManager sharedManager];
-        MXKAccount* account = accountManager.activeAccounts.firstObject;
-
-        if (accountManager.apnsDeviceToken)
-        {
-            [account enablePushNotifications:!account.pushNotificationServiceIsActive success:^{
-                [self stopActivityIndicator];
-            } failure:^(NSError *error) {
-                [self stopActivityIndicator];
-            }];
-        }
-        else
-        {
-            // Obtain device token when user has just enabled access to notifications from system settings
-            [[AppDelegate theDelegate] registerForRemoteNotificationsWithCompletion:^(NSError * error) {
-                if (error)
-                {
-                    [(UISwitch *)sender setOn:NO animated:YES];
-                    [self stopActivityIndicator];
-                }
-                else
-                {
-                    [account enablePushNotifications:YES success:^{
-                        [self stopActivityIndicator];
-                    } failure:^(NSError *error) {
-                        [self stopActivityIndicator];
-                    }];
-                }
-            }];
-        }
-    }
+    NSURL *settingsAppURL = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+    [[UIApplication sharedApplication] openURL:settingsAppURL options:@{} completionHandler:nil];
 }
 
 - (void)toggleCallKit:(id)sender

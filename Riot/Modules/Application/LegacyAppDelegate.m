@@ -1949,8 +1949,9 @@ NSString *const AppDelegateUniversalLinkDidChangeNotification = @"AppDelegateUni
             }
         }
         
-        // Set up push notifications
+        // Set up push notifications and enable if authorization has been granted
         [self.pushNotificationService registerUserNotificationSettings];
+        [self.pushNotificationService ensurePushNotificationsAreEnabled];
         
         // Observe inApp notifications toggle change for each account
         for (MXKAccount *account in mxAccounts)

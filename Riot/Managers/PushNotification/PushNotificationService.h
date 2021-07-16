@@ -63,6 +63,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)didFailToRegisterForRemoteNotificationsWithError:(NSError *)error;
 
+/**
+ If the user has authorized the app for push notifications, checks each account to see
+ if push notifications are enabled and if not, enables them. The user can opt out of push
+ notifications by disabling them for the app in the Settings app.
+ */
+- (void)ensurePushNotificationsAreEnabled;
+
 - (void)didReceiveRemoteNotification:(NSDictionary *)userInfo
               fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler;
 

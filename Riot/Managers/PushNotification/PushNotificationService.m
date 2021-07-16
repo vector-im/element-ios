@@ -160,6 +160,46 @@ Matrix session observer used to detect new opened sessions.
     }
 }
 
+- (void)ensurePushNotificationsAreEnabled
+{
+    // Get the user's notification settings to check their authorization status.
+    [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings * _Nonnull settings) {
+        // If the user has disabled notifications in the Settings app there is nothing to do.
+        if (settings.authorizationStatus == UNAuthorizationStatusDenied)
+        {
+            return;
+        }
+        
+        // Enable notifications for all accounts in the manager
+        MXKAccountManager *accountManager = [MXKAccountManager sharedManager];
+        
+        for (MXKAccount *account in accountManager.accounts)
+        {
+            if (!account.pushNotificationServiceIsActive)
+            {
+                if (accountManager.apnsDeviceToken)
+                {
+                    [account enablePushNotifications:YES success:nil failure:nil];
+                }
+                else
+                {
+                    // Obtain device token when user has just enabled access to notifications from system settings
+                    [self registerForRemoteNotificationsWithCompletion:^(NSError * error) {
+                        if (error)
+                        {
+                            MXLogError(@"[LegacyAppDelegate]: Error registering for remote notifications.");
+                        }
+                        else
+                        {
+                            [account enablePushNotifications:YES success:nil failure:nil];
+                        }
+                    }];
+                }
+            }
+        }
+    }];
+}
+
 - (void)didReceiveRemoteNotification:(NSDictionary *)userInfo
               fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
