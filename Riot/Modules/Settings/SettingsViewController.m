@@ -1786,30 +1786,19 @@ TableViewSectionsDelegate>
     {
         if (row == NOTIFICATION_SETTINGS_ENABLE_PUSH_INDEX)
         {
-            MXKTableViewCellWithButton *notificationsCell = [tableView dequeueReusableCellWithIdentifier:[MXKTableViewCellWithButton defaultReuseIdentifier]];
-            if (!notificationsCell)
+            cell = [tableView dequeueReusableCellWithIdentifier:kSettingsViewControllerPhoneBookCountryCellId];
+            if (!cell)
             {
-                notificationsCell = [[MXKTableViewCellWithButton alloc] init];
+                cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:kSettingsViewControllerPhoneBookCountryCellId];
             }
-            else
-            {
-                // Fix https://github.com/vector-im/riot-ios/issues/1354
-                // Do not move this line in prepareForReuse because of https://github.com/vector-im/riot-ios/issues/1323
-                notificationsCell.mxkButton.titleLabel.text = nil;
-            }
-            
-            NSString* title = NSLocalizedStringFromTable(@"settings_enable_push_notif", @"Vector", nil);
-            
-            [notificationsCell.mxkButton setTitle:title forState:UIControlStateNormal];
-            [notificationsCell.mxkButton setTitle:title forState:UIControlStateHighlighted];
-            [notificationsCell.mxkButton setTintColor:ThemeService.shared.theme.tintColor];
-            notificationsCell.mxkButton.titleLabel.font = [UIFont systemFontOfSize:17];
-            
-            [notificationsCell.mxkButton removeTarget:self action:nil forControlEvents:UIControlEventTouchUpInside];
-            [notificationsCell.mxkButton addTarget:self action:@selector(openSystemSettingsApp:) forControlEvents:UIControlEventTouchUpInside];
-            notificationsCell.mxkButton.accessibilityIdentifier=@"SettingsVCSignOutButton";   // FIXME: Implement accessibility
-            
-            cell = notificationsCell;
+
+            cell.textLabel.textColor = ThemeService.shared.theme.textPrimaryColor;
+
+            cell.textLabel.text = NSLocalizedStringFromTable(@"settings_enable_push_notif", @"Vector", nil);
+            cell.detailTextLabel.text = @"";
+
+            [cell vc_setAccessoryDisclosureIndicatorWithCurrentTheme];
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
         }
         else if (row == NOTIFICATION_SETTINGS_SHOW_DECODED_CONTENT)
         {
@@ -2503,6 +2492,10 @@ TableViewSectionsDelegate>
             UITableViewCell *selectedCell = [tableView cellForRowAtIndexPath:indexPath];
             [self showInviteFriendsFromSourceView:selectedCell];
         }
+        else if (section == SECTION_TAG_NOTIFICATIONS && row == NOTIFICATION_SETTINGS_ENABLE_PUSH_INDEX)
+        {
+            [self openSystemSettingsApp];
+        }
         else if (section == SECTION_TAG_DISCOVERY)
         {
             [self.settingsDiscoveryTableViewSection selectRow:row];
@@ -2804,7 +2797,7 @@ TableViewSectionsDelegate>
     }
 }
 
-- (void)openSystemSettingsApp:(id)sender
+- (void)openSystemSettingsApp
 {
     NSURL *settingsAppURL = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
     [[UIApplication sharedApplication] openURL:settingsAppURL options:@{} completionHandler:nil];
