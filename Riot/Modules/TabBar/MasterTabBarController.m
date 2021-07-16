@@ -31,7 +31,7 @@
 
 #import "Riot-Swift.h"
 
-@interface MasterTabBarController () <AuthenticationViewControllerDelegate>
+@interface MasterTabBarController () <AuthenticationViewControllerDelegate, UITabBarControllerDelegate>
 {
     // Array of `MXSession` instances.
     NSMutableArray<MXSession*> *mxSessionArray;    
@@ -61,6 +61,12 @@
     
     // The groups data source
     GroupsDataSource *groupsDataSource;
+    
+    // Title label in the navigation bar
+    UILabel *titleLabel;
+    
+    // Subtitle label in the navigation bar
+    UILabel *subtitleLabel;
 }
 
 @property(nonatomic,getter=isHidden) BOOL hidden;
@@ -105,22 +111,32 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view, typically from a nib.
     
+    self.delegate = self;
+    
     _authenticationInProgress = NO;
     
     // Note: UITabBarViewController shoud not be embed in a UINavigationController (https://github.com/vector-im/riot-ios/issues/3086)
     [self vc_removeBackTitle];
+    
+    [self setupTitleView];
+    titleLabel.text = NSLocalizedStringFromTable(@"title_home", @"Vector", nil);
     
     childViewControllers = [NSMutableArray array];
 }
 
 - (void)userInterfaceThemeDidChange
 {
-    [ThemeService.shared.theme applyStyleOnNavigationBar:self.navigationController.navigationBar];
+    id<Theme> theme = ThemeService.shared.theme;
+    [theme applyStyleOnNavigationBar:self.navigationController.navigationBar];
 
-    [ThemeService.shared.theme applyStyleOnTabBar:self.tabBar];
+    [theme applyStyleOnTabBar:self.tabBar];
     
-    self.view.backgroundColor = ThemeService.shared.theme.backgroundColor;
-    
+    self.view.backgroundColor = theme.backgroundColor;
+    titleLabel.textColor = theme.colors.primaryContent;
+    titleLabel.font = theme.fonts.calloutSB;
+    subtitleLabel.textColor = theme.colors.tertiaryContent;
+    subtitleLabel.font = theme.fonts.footnote;
+
     [self setNeedsStatusBarAppearanceUpdate];
 }
 
@@ -763,8 +779,9 @@
 - (void)filterRoomsWithParentId:(NSString*)roomParentId
                 inMatrixSession:(MXSession*)mxSession
 {
-    // TODO: Update recentsDataSource in order to keep only rooms with given parent id.
-    // When updating the data source, if needed, screens should also update their title view subtitle with the space name
+    subtitleLabel.text = roomParentId ? [mxSession roomSummaryWithRoomId:roomParentId].displayname : nil;
+
+    recentsDataSource.currentSpace = [mxSession.spaceService getSpaceWithId:roomParentId];
 }
 
 #pragma mark -
@@ -845,6 +862,27 @@
             _currentGroupDetailViewController.navigationItem.leftItemsSupplementBackButton = YES;
         }
     }
+}
+
+-(void)setupTitleView
+{
+    titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 0, 0)];
+    titleLabel.backgroundColor = UIColor.clearColor;
+    titleLabel.textColor = UIColor.grayColor;
+    titleLabel.font = [UIFont boldSystemFontOfSize:17];
+
+    subtitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 0, 0)];
+    subtitleLabel.backgroundColor = UIColor.clearColor;
+    subtitleLabel.textColor = UIColor.blackColor;
+    subtitleLabel.font = [UIFont boldSystemFontOfSize:12];
+    
+    UIStackView *stackView = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, subtitleLabel]];
+    stackView.distribution = UIStackViewDistributionEqualCentering;
+    stackView.axis = UILayoutConstraintAxisVertical;
+    stackView.alignment = UIStackViewAlignmentCenter;
+    stackView.spacing = 0.5;
+    
+    self.navigationItem.titleView = stackView;
 }
 
 - (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion
@@ -1234,6 +1272,32 @@
 {
     _authenticationInProgress = NO;
     [self.masterTabBarDelegate masterTabBarControllerDidCompleteAuthentication:self];
+}
+
+#pragma mark - UITabBarControllerDelegate
+
+- (void)tabBarController:(UITabBarController *)tabBarController didSelectViewController:(UIViewController *)viewController
+{
+    if ([viewController isKindOfClass:HomeViewController.class])
+    {
+        titleLabel.text = NSLocalizedStringFromTable(@"title_home", @"Vector", nil);
+    }
+    else if ([viewController isKindOfClass:FavouritesViewController.class])
+    {
+        titleLabel.text = NSLocalizedStringFromTable(@"title_favourites", @"Vector", nil);
+    }
+    else if ([viewController isKindOfClass:PeopleViewController.class])
+    {
+        titleLabel.text = NSLocalizedStringFromTable(@"title_people", @"Vector", nil);
+    }
+    else if ([viewController isKindOfClass:RoomsViewController.class])
+    {
+        titleLabel.text = NSLocalizedStringFromTable(@"title_rooms", @"Vector", nil);
+    }
+    else if ([viewController isKindOfClass:GroupsViewController.class])
+    {
+        titleLabel.text = NSLocalizedStringFromTable(@"title_groups", @"Vector", nil);
+    }
 }
 
 @end
